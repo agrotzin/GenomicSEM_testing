@@ -1,6 +1,7 @@
+
 userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", printwarn=TRUE,
                      sub=FALSE,cores=NULL, toler=FALSE, SNPSE=FALSE, parallel=TRUE, GC="standard", MPI=FALSE,
-                     smooth_check=FALSE, TWAS=FALSE, std.lv=FALSE,fix_measurement=TRUE){
+                     smooth_check=FALSE, TWAS=FALSE, std.lv=FALSE,fix_measurement=TRUE,Q_SNP=TRUE){
   # Set toler to machine precision to enable passing this to solve() directly
   if (!toler) toler <- .Machine$double.eps
   # Sanity checks
@@ -102,7 +103,7 @@ userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", prin
       
       # Join the filtered lines back into a single text string
       noSNPmodel <- paste(filtered_lines, collapse = "\n")
-
+      
       #smooth S and V matrices if necessary
       smoothS<-ifelse(eigen(S_LD)$values[nrow(S_LD)] <= 0, S_LD<-as.matrix((nearPD(S_LD, corr = FALSE))$mat), S_LD<-S_LD)
       smoothV<-ifelse(eigen(V_LD)$values[nrow(V_LD)] <= 0, V_LD<-as.matrix((nearPD(V_LD, corr = FALSE))$mat), V_LD<-V_LD)
@@ -271,7 +272,7 @@ userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", prin
   f <- nrow(beta_SNP)
   # Run a single SNP to obtain base Lavaan model object
   LavModel1 <- .userGWAS_main(i=1, cores=1, n_phenotypes, n=1, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP, varSNP, GC,
-                              coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, returnlavmodel=TRUE)
+                              coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, returnlavmodel=TRUE,Q_SNP=Q_SNP,model=model)
   if(!parallel){
     #make empty list object for model results if not saving specific model parameter
     if(sub[[1]]==FALSE){
@@ -293,7 +294,7 @@ userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", prin
         }
       }
       final2 <- .userGWAS_main(i, cores=1, n_phenotypes, 1, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP, varSNP, GC,
-                               coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, basemodel=LavModel1)
+                               coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, basemodel=LavModel1,Q_SNP=Q_SNP,model=model)
       final2$i <- NULL
       if(sub[[1]] != FALSE){
         final3 <- as.data.frame(matrix(NA,ncol=ncol(final2),nrow=length(sub)))
@@ -360,7 +361,7 @@ userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", prin
         foreach (i=1:nrow(beta_SNP[[n]]), .combine='rbind', .packages = "lavaan") %dopar% 
         .userGWAS_main(i, int, n_phenotypes, n, I_LD, V_LD, S_LD,
                        std.lv, varSNPSE2, order, SNPs2[[n]], beta_SNP[[n]], SE_SNP[[n]], varSNP[[n]], GC,
-                       coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, basemodel=LavModel1)
+                       coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1, df, npar, basemodel=LavModel1,Q_SNP=Q_SNP,model=model)
     } else {
       #Util-functions have to be explicitly passed to the analysis function in PSOCK cluster
       utilfuncs <- list()
@@ -374,7 +375,7 @@ userGWAS <- function(covstruc=NULL, SNPs=NULL, estimation="DWLS", model="", prin
                    .userGWAS_main(i, int, n_phenotypes, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order,
                                   SNPs2[[n]], beta_SNP[[n]], SE_SNP[[n]], varSNP[[n]], GC, coords,
                                   smooth_check, TWAS, printwarn, toler, estimation, sub, Model1,
-                                  df, npar, utilfuncs, basemodel=LavModel1)
+                                  df, npar, utilfuncs, basemodel=LavModel1,Q_SNP=Q_SNP,model=model)
                  }
     }
     
