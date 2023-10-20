@@ -1,6 +1,6 @@
 .userGWAS_main <- function(i, cores, k, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP,
                            varSNP, GC, coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1,
-                           df, npar, utilfuncs=NULL, basemodel=NULL, returnlavmodel=FALSE) {
+                           df, npar, utilfuncs=NULL, basemodel=NULL, returnlavmodel=FALSE,Q_SNP,model) {
   # utilfuncs contains utility functions to enable this code to work on PSOC clusters (for Windows)
   if (!is.null(utilfuncs)) {
     for (j in names(utilfuncs)) {
@@ -107,7 +107,7 @@
   
   if(class(test$value)[1] == "lavaan" & grepl("solution has NOT",  as.character(test$warning)) != TRUE){
     Model_Output <- parTable(Model1_Results)
-
+    
     #pull the delta matrix (this doesn't depend on N)
     S2.delt <- lavInspect(Model1_Results, "delta")
     
@@ -203,6 +203,59 @@
     eta <- as.vector(lowerTriangle(implied2,diag=TRUE))
     Q <- t(eta)%*%P1%*%solve(Eig2)%*%t(P1)%*%eta
     
+    #new Q_SNP calculation
+    if(Q_SNP){
+    #number of factors
+    lv<-colnames(lavInspect(Model1_Results,"cor.lv"))
+    
+    #number of factors with estimated SNP effects
+    #split model code by line
+    lines_SNP <- strsplit(model, "\n")[[1]]
+    
+    # Use grep to find lines containing "SNP" 
+    lines_SNP <- lines_SNP[grepl("SNP", lines_SNP)]
+    
+    #subset to factors with estimated SNP effects
+    lv <- lv[lv %in% gsub(" ~.*|~.*", "", lines_SNP)]
+    
+    #name the columns and rows of V_SNP according to the genetic covariance matrix for subsetting in loop below
+    colnames(V_SNP)<-colnames(S_LD)
+    rownames(V_SNP)<-colnames(V_SNP)
+    
+    Q_SNP_result<-vector()
+    Q_SNP_df<-vector()
+      
+    #loop calculating Q_SNP for each factor
+    for(b in 1:length(lv)){
+      
+      #determine the indicators for the factor
+      indicators<-subset(Model_Output$rhs,Model_Output$lhs == lv[b] & Model_Output$op == "=~")
+     
+      #subset V_SNP to the indicators for that factor
+      V_SNP_i<-V_SNP[indicators,indicators]
+      
+      #calculate eigen values V_SNP matrix
+      Eig<-as.matrix(eigen(V_SNP_i)$values)
+      
+      #create empty matrix 
+      Eig2<-diag(length(indicators))
+      
+      #put eigen values in diagonal of the matrix
+      diag(Eig2)<-Eig
+      
+      #Pull P1 (the eigen vectors of V_SNP)
+      P1<-eigen(V_SNP_i)$vectors
+      
+      #eta: the residual covariance matrix for the SNP effects in column 1 for just the indicators
+      eta<-as.vector(implied2[1,indicators])
+      
+      #calculate model chi-square for only the SNP portion of the model for those factor indicators
+      Q_SNP_result[b]<-t(eta)%*%P1%*%solve(Eig2)%*%t(P1)%*%eta
+      Q_SNP_df[b]<-length(indicators)-1
+    }
+   
+    }
+   
     ##remove parameter constraints, ghost parameters, and fixed effects from output to merge with SEs
     unstand <- subset(Model_Output, Model_Output$plabel != "" & Model_Output$free > 0)[,c(2:4,8,11,14)]
     
@@ -238,10 +291,7 @@
       final$Z_Estimate <- NA
       final$Pval_Estimate <- NA
     }
-
-    #remove redundant internal representations of model from lavaan
-    final<-subset(final, final$op != "da")
-  
+    
     ##add in model fit components to each row
     if(!(is.na(Q))){
       final$chisq <- rep(Q,nrow(final))
@@ -253,6 +303,23 @@
     final$chisq_pval <- rep(NA,nrow(final))
     final$AIC <- rep(NA, nrow(final))}
     
+    #add in factor Q_SNP for relevant row
+    if(Q_SNP){
+      final$Q_SNP<-rep(NA,nrow(final))
+      final$Q_SNP_df<-rep(NA,nrow(final))
+      final$Q_SNP_pval<-rep(NA,nrow(final))
+      for(r in 1:nrow(final)){
+        for(h in 1:length(lv)){
+          #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP effects are listed in the model)
+        if(final$lhs[r] == lv[h] & final$rhs[r] == "SNP"){
+          final$Q_SNP[r]<-Q_SNP_result[h]
+          final$Q_SNP_df[r]<-Q_SNP_df[h]
+          final$Q_SNP_pval[r]<-pchisq(final$Q_SNP[r],final$Q_SNP_df[r],lower.tail=FALSE)
+        }
+        }
+      }
+    }
+
     ##add in error and warning messages
     if(printwarn){
       final$error <- ifelse(class(test$value) == "lavaan", 0, as.character(test$value$message))[1]
@@ -272,8 +339,12 @@
     }
   }else{
     
-     final <- data.frame(t(rep(NA, 13)))
- 
+    if(Q_SNP){
+      final <- data.frame(t(rep(NA, 16)))
+    }else{
+    final <- data.frame(t(rep(NA, 13)))
+    }
+    
     if(printwarn){
       final$error <- ifelse(class(test$value) == "lavaan", 0, as.character(test$value$message))[1]
       final$warning <- ifelse(class(test$warning) == 'NULL', 0, as.character(test$warning$message))[1]}
@@ -284,13 +355,24 @@
       final2 <- cbind(final2,Z_smooth)
     }
   }
+  
   if(TWAS){
-    new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
-  } else {
-    new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
+    if(Q_SNP){
+    new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
+    }else{
+      new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
+    }
+  }else{
+    if(Q_SNP){
+    new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
+    }else{
+      new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
+    }
   }
+  
   if(smooth_check)
     new_names <- c(new_names, "Z_smooth")
+  
   colnames(final2) <- new_names
 
   return(final2)
