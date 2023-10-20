@@ -1,3 +1,4 @@
+
 .userGWAS_main <- function(i, cores, k, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP,
                            varSNP, GC, coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1,
                            df, npar, utilfuncs=NULL, basemodel=NULL, returnlavmodel=FALSE,Q_SNP,model) {
@@ -230,7 +231,11 @@
       
       #determine the indicators for the factor
       indicators<-subset(Model_Output$rhs,Model_Output$lhs == lv[b] & Model_Output$op == "=~")
-     
+      
+      #check that the factor indicators are observed variables
+      #for which SNP-phenotype covariances will be in the S matrix
+      #otherwise put Q_SNP as NA for second-order factors
+      if(indicators[1] %in% colnames(V_SNP)){
       #subset V_SNP to the indicators for that factor
       V_SNP_i<-V_SNP[indicators,indicators]
       
@@ -252,6 +257,10 @@
       #calculate model chi-square for only the SNP portion of the model for those factor indicators
       Q_SNP_result[b]<-t(eta)%*%P1%*%solve(Eig2)%*%t(P1)%*%eta
       Q_SNP_df[b]<-length(indicators)-1
+      }else{
+        Q_SNP_result[b]<-NA
+        Q_SNP_df[b]<-length(indicators)-1
+      }
     }
    
     }
