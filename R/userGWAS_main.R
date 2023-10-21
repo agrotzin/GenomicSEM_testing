@@ -317,6 +317,7 @@
       final$Q_SNP<-rep(NA,nrow(final))
       final$Q_SNP_df<-rep(NA,nrow(final))
       final$Q_SNP_pval<-rep(NA,nrow(final))
+      if(length(lv) > 0){
       for(r in 1:nrow(final)){
         for(h in 1:length(lv)){
           #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP effects are listed in the model)
@@ -324,6 +325,7 @@
           final$Q_SNP[r]<-Q_SNP_result[h]
           final$Q_SNP_df[r]<-Q_SNP_df[h]
           final$Q_SNP_pval[r]<-pchisq(final$Q_SNP[r],final$Q_SNP_df[r],lower.tail=FALSE)
+        }
         }
         }
       }
