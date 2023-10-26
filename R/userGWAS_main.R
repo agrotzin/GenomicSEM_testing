@@ -1,4 +1,3 @@
-
 .userGWAS_main <- function(i, cores, k, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP,
                            varSNP, GC, coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1,
                            df, npar, utilfuncs=NULL, basemodel=NULL, returnlavmodel=FALSE,Q_SNP,model) {
@@ -214,7 +213,9 @@
     lines_SNP <- strsplit(model, "\n")[[1]]
     
     # Use grep to find lines containing "SNP" 
-    lines_SNP <- lines_SNP[grepl("SNP", lines_SNP)]
+    if(TWAS){
+    lines_SNP <- lines_SNP[grepl("Gene", lines_SNP)]
+      }else{lines_SNP <- lines_SNP[grepl("SNP", lines_SNP)]}
     
     #subset to factors with estimated SNP effects
     lv <- lv[lv %in% gsub(" ~.*|~.*", "", lines_SNP)]
@@ -320,8 +321,8 @@
       if(length(lv) > 0){
       for(r in 1:nrow(final)){
         for(h in 1:length(lv)){
-          #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP effects are listed in the model)
-        if(final$lhs[r] == lv[h] & final$rhs[r] == "SNP"){
+          #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP or factor~Gene effects are listed in the model)
+      if(final$lhs[r] == lv[h] & ((final$rhs[r] == "Gene" & TWAS) | (final$rhs[r] == "SNP" & !TWAS))) {
           final$Q_SNP[r]<-Q_SNP_result[h]
           final$Q_SNP_df[r]<-Q_SNP_df[h]
           final$Q_SNP_pval[r]<-pchisq(final$Q_SNP[r],final$Q_SNP_df[r],lower.tail=FALSE)
