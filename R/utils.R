@@ -108,6 +108,31 @@ If the Neff value is halved in the summary stats, but not recognized by the mung
     return(vec2)
 }
 
+#function to rearrange both S and V in the way required by lavaan for ESEM
+.rearrange_esem <- function (k, fit, names) {
+  order1 <- names
+  
+  #get the internal ordering in lavaan from the lambda matrix
+  Ordering<-data.frame(inspect(fit,"partable")$lambda)
+  
+  sorting <- order(apply(Ordering, 1, function(row) {
+    min(row[row > 0])  
+  }))
+  
+  kst <- k*(k+1)/2
+  covA <- matrix(NA, k, k)
+  covA[lower.tri(covA, diag = TRUE)] <- 1:kst
+  covA <- t(covA)
+  covA[lower.tri(covA, diag = TRUE)] <- 1:kst
+  colnames(covA) <- rownames(covA) <- order1 #give A actual variable order from lavaan output
+  #reorder A by order2
+  covA <- covA[sorting,  sorting] #rearrange rows/columns
+  vec2 <- lav_matrix_vech(covA) #grab new vectorized order
+  return(list(sorting,vec2))
+}
+
+
+
 ##modification of trycatch that allows the results of a failed run to still be saved
 .tryCatch.W.E <- function(expr) {
     W <- NULL
