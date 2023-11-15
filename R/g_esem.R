@@ -88,7 +88,7 @@ g_esem <-function(covstruc, model = "", rotation = "geomin", rotation.args=list(
   #transform V_LD matrix into a weight matrix: 
   W <- solve(V_LD)
 
-  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "WLS", WLS.V = W, sample.nobs = 2,warn=FALSE,std.lv=std.lv, optim.dx.tol = +Inf,optim.force.converged=TRUE,control=list(iter.max=1),rotation=rotation,rotation.args=rotation.args))
+  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "WLS", WLS.V = W, sample.nobs = 2,warn=FALSE, optim.dx.tol = +Inf,optim.force.converged=TRUE,control=list(iter.max=1),rotation=rotation,rotation.args=rotation.args))
   
   if(class(empty3$value) != "lavaan"){
     warning(paste("The function has stopped due to convergence issues for your primary model. Please contact us with your specific model and variables used or try specifying an alternative model"))
