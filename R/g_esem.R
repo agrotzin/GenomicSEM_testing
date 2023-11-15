@@ -93,14 +93,16 @@ g_esem <-function(covstruc, model = "", rotation = "geomin", rotation.args=list(
   if(class(empty3$value) != "lavaan"){
     warning(paste("The function has stopped due to convergence issues for your primary model. Please contact us with your specific model and variables used or try specifying an alternative model"))
   }
-  
-  ##save the ordering
-  order <- .rearrange(k = k, fit = ReorderModel, names = rownames(S_LD))
-  
-  ##reorder the weight (inverted V_LD) matrix
-  V_Reorder<-V_LD[order,order]
-  W_Reorder<-solve(V_Reorder)
-  
+
+#save internal ordering of S and V
+order <- .rearrange_esem(k = k, fit = ReorderModel, names = rownames(S_LD))
+
+#reorder S                         
+S_LD<-S_LD[order[[1]],order[[1]]]
+
+#create weight matrix using inverted, reordered sampling covariance matrix
+W_Reorder<-solve(V_LD[order[[2]],order[[2]]])
+
   print("Running model")
   
   ##run the model. save failed runs and run model. warning and error functions prevent loop from breaking if there is an error. 
