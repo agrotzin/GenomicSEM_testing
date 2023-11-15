@@ -99,9 +99,7 @@ g_esem <-function(covstruc, model = "", rotation = "geomin", rotation.args=list(
   
   ##reorder the weight (inverted V_LD) matrix
   V_Reorder<-V_LD[order,order]
-  W_Reorder<-diag(z)
-  diag(W_Reorder)<-diag(V_Reorder)
-  W_Reorder<-solve(W_Reorder)
+  W_Reorder<-solve(V_Reorder)
   
   print("Running model")
   
