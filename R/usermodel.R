@@ -318,7 +318,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
       ##df of user model
       df <- lavInspect(Model1_Results, "fit")["df"]
 
-       CFI<-as.numeric(((Q_CFI-dfCFI)-(modelchi-df))/(Q_CFI-dfCFI))
+       CFI<-as.numeric(((CFI_chi-dfCFI)-(modelchi-df))/(CFI_chi-dfCFI))
        CFI<-ifelse(CFI > 1, 1, CFI)
 
       print("Calculating Standardized Results")
