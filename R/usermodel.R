@@ -483,7 +483,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
         
         SRMR<-lavInspect(Model1_Results, "fit")["srmr"]
         
-        modelfit<-cbind(chisq,df,AIC,CFI,SRMR)
+        modelfit<-cbind(modelchi,df,AIC,CFI,SRMR)
         
         std_all<-standardizedSolution(Fit_stand)
         std_all<-subset(std_all, !(is.na(std_all$pvalue)))
