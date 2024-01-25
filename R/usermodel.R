@@ -1,4 +1,3 @@
-
 usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_cov=FALSE,fix_resid=TRUE,toler=NULL){ 
   time<-proc.time()
   ##determine if the model is likely being listed in quotes and print warning if so
