@@ -88,7 +88,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
   #transform V_LD matrix into a weight matrix: 
   W <- solve(V_LD)
   
-  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE,std.lv=std.lv, optim.dx.tol = +Inf,optim.force.converged=TRUE,control=list(iter.max=1)))
+  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE,std.lv=std.lv, optim.dx.tol = .01,optim.force.converged=TRUE,control=list(iter.max=1)))
   
   r<-nrow(lavInspect(ReorderModel, "cor.lv"))
   
@@ -109,11 +109,11 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
   
   if(estimation == "DWLS"){
     ##run the model. save failed runs and run model. warning and error functions prevent loop from breaking if there is an error. 
-    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", std.lv=std.lv,WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = +Inf))
+    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", std.lv=std.lv,WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = .01))
   }
   
   if(estimation == "ML"){
-    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "ML", sample.nobs = 200,std.lv=std.lv, optim.dx.tol = +Inf,sample.cov.rescale=FALSE))
+    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "ML", sample.nobs = 200,std.lv=std.lv, optim.dx.tol = .01,sample.cov.rescale=FALSE))
   }
   
   empty4$warning$message[1]<-ifelse(is.null(empty4$warning$message), empty4$warning$message[1]<-0, empty4$warning$message[1])
@@ -133,11 +133,11 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
       Model1<-paste(Model1,Model3)
       
       if(estimation == "DWLS"){
-        empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS",std.lv=std.lv, WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = +Inf))
+        empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS",std.lv=std.lv, WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = .01))
       }
       
       if(estimation == "ML"){
-        empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "ML", std.lv=std.lv, sample.nobs = 200,optim.dx.tol = +Inf,sample.cov.rescale=FALSE))
+        empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "ML", std.lv=std.lv, sample.nobs = 200,optim.dx.tol = .01,sample.cov.rescale=FALSE))
       }
       
       #if adding in residuals fixed above 0 is duplicating user provided arguments then revert to original model
@@ -418,14 +418,14 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
       W_stand<-solve(V_stand2[order,order])
       
       if(estimation == "DWLS"){
-        emptystand<-.tryCatch.W.E(Fit_stand <- sem(Model1, sample.cov = S_Stand, estimator = "DWLS", WLS.V = W_stand, std.lv=std.lv,sample.nobs = 2, optim.dx.tol = +Inf))
+        emptystand<-.tryCatch.W.E(Fit_stand <- sem(Model1, sample.cov = S_Stand, estimator = "DWLS", WLS.V = W_stand, std.lv=std.lv,sample.nobs = 2, optim.dx.tol = .01))
         if(is.null(emptystand$warning$message[1])) {
           emptystand$warning$message[1] <- 0
         }
       }
       
       if(estimation == "ML"){
-        emptystand<-.tryCatch.W.E(Fit_stand <- sem(Model1, sample.cov = S_Stand, estimator = "ML",  sample.nobs = 200, std.lv=std.lv, optim.dx.tol = +Inf,sample.cov.rescale=FALSE))
+        emptystand<-.tryCatch.W.E(Fit_stand <- sem(Model1, sample.cov = S_Stand, estimator = "ML",  sample.nobs = 200, std.lv=std.lv, optim.dx.tol = .01,sample.cov.rescale=FALSE))
         if(is.null(emptystand$warning$message[1])) {
           emptystand$warning$message[1] <- 0
         }
