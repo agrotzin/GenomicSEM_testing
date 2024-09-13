@@ -569,7 +569,8 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
         dfCFI <- (((k * (k + 1))/2) - k)
         
         #calculate CFI
-        CFI<-as.numeric(((CFI_chi-dfCFI)-(chisq-df))/(CFI_chi-dfCFI))
+        CFI<-as.numeric((CFI_chi-dfCFI)-(chisq-df))/(CFI_chi-dfCFI))
+        CFI<-ifelse(CFI > 1, 1, CFI)
 
         modelfit<-cbind(chisq,df,AIC,CFI,SRMR)
         
