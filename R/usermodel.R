@@ -175,7 +175,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
             The model output is also printed below (without standard errors) in case this is helpful for troubleshooting. Please note
             that these results should not be interpreted.")
     check<-1
-    unstand<-data.frame(inspect(Model1_Results, "list")[,c(2:4,8,14)])
+    unstand<-data.frame(inspect(Model1_Results, "list")[,c("lhs","op","rhs","free","est")])
     unstand<-subset(unstand, unstand$free != 0)                    
     unstand$free<-NULL
     results<-unstand
@@ -224,7 +224,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
         se.ghost <- sqrt(diag(var.ind))
         
         #pull the ghost parameter point estiamte
-        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c(2:4,8,11,14)]
+        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c("lhs","op","rhs","free","label","est")]
         
         ##combine with delta method SE
         ghost2<-cbind(ghost,se.ghost)
@@ -233,7 +233,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
       }else{se.ghost<-NA
       if(":=" %in% Model_Output$op & is.na(se.ghost[1])){
         se.ghost<-rep("SE could not be computed", count(":=" %in% Model_Output$op)$freq)
-        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c(2:4,8,11,14)]
+        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c("lhs","op","rhs","free","label","est")]
         ghost2<-cbind(ghost,se.ghost)
         colnames(ghost2)[7]<-"SE"}else{}}
     }
@@ -244,7 +244,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
         print("SEs of ghost parameters are not available for ML estimation")
         
         #pull the ghost parameter point estiamte
-        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c(2:4,8,11,14)]
+        ghost<-subset(Model_Output, Model_Output$op == ":=")[,c("lhs","op","rhs","free","label","est")]
         se.ghost<-rep(NA, sum(":=" %in% Model_Output$op))
         warning("SE for ghost parameter not available for ML")
         ##combine with delta method SE
@@ -268,7 +268,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
               Consequently, model fit estimates could not be computed and results should likely not be interpreted. Results are provided below 
               to enable troubleshooting. A model constraint that constrains the latent correlations to be above -1, less than 1, or to have positive variances is suggested.")
       
-      unstand<-data.frame(inspect(Model1_Results, "list")[,c(2:4,8,14)])
+      unstand<-data.frame(inspect(Model1_Results, "list")[,c("lhs","op","rhs","free","est")])
       unstand<-subset(unstand, unstand$free != 0)                    
       unstand$free<-NULL
       results<-unstand
@@ -441,7 +441,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
       if(class(bread_stand2$value)[1] != "matrix" | lavInspect(Fit_stand,"converged") == FALSE | class(emptystand)[1] == "simpleError"){
         warning("The standardized model failed to converge. This likely indicates more general problems with the model solution. Unstandardized results are printed below but this should be interpreted with caution.")
         
-        unstand<-data.frame(inspect(Model1_Results, "list")[,c(2:4,8,14)])
+        unstand<-data.frame(inspect(Model1_Results, "list")[,c("lhs","op","rhs","free","est")])
         unstand<-subset(unstand, unstand$free != 0)                    
         unstand$free<-NULL
         results<-unstand
@@ -489,7 +489,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
             se.ghost_stand <- sqrt(diag(var.ind))
             
             #pull the ghost parameter point estiamte
-            ghost_stand<-subset(Model_Stand,  Model_Stand$op == ":=")[,c(2:4,8,11,14)]
+            ghost_stand<-subset(Model_Stand,  Model_Stand$op == ":=")[,c("lhs","op","rhs","free","label","est")]
             
             ##combine with delta method SE
             ghost2_stand<-cbind(ghost_stand,se.ghost_stand)
@@ -497,7 +497,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
           }else{
             if(":=" %in% Model_Stand$op & (NA %in% Model_Stand$se)){
               se.ghost_stand<-rep("SE could not be computed", count(":=" %in% Model_Stand$op)$freq)
-              ghost_stand<-subset(Model_Stand, Model_Stand$op == ":=")[,c(2:4,8,11,14)]
+              ghost_stand<-subset(Model_Stand, Model_Stand$op == ":=")[,c("lhs","op","rhs","free","label","est")]
               ghost2_stand<-cbind(ghost_stand,se.ghost_stand)
               colnames(ghost2_stand)[7]<-"SE_stand"}else{}}
         }
@@ -508,7 +508,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
             print("SEs of ghost parameters are not available for ML estimation")
             
             #pull the ghost parameter point estiamte
-            ghost_stand<-subset(Model_Stand, Model_Stand$op == ":=")[,c(2:4,8,11,14)]
+            ghost_stand<-subset(Model_Stand, Model_Stand$op == ":=")[,c("lhs","op","rhs","free","label","est")]
             se.ghost_stand<-rep(NA, sum(":=" %in% Model_Stand$op))
             warning("SEs for ghost parameters are not available for ML estimation")
             ##combine with delta method SE
@@ -517,7 +517,7 @@ usermodel <-function(covstruc,estimation="DWLS", model = "", std.lv=FALSE, imp_c
           }
         }
         
-        unstand<-data.frame(inspect(Model1_Results, "list")[,c(2:4,8,14)])
+        unstand<-data.frame(inspect(Model1_Results, "list")[,c("lhs","op","rhs","free","est")])
         unstand<-subset(unstand, unstand$free != 0)                    
         unstand$free<-NULL
         
