@@ -98,11 +98,11 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
   
   ##run the model
   if(std.lv == FALSE){
-    empty2<-.tryCatch.W.E(ReorderModel1 <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE, optim.dx.tol = +Inf,optim.force.converged=TRUE))
+    empty2<-.tryCatch.W.E(ReorderModel1 <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE, optim.dx.tol = .01,optim.force.converged=TRUE))
   }
   
   if(std.lv == TRUE){
-    empty2<-.tryCatch.W.E(ReorderModel1 <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE,std.lv=TRUE, optim.dx.tol = +Inf,optim.force.converged=TRUE))
+    empty2<-.tryCatch.W.E(ReorderModel1 <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W, sample.nobs = 2,warn=FALSE,std.lv=TRUE, optim.dx.tol = .01,optim.force.converged=TRUE))
   }
   
   if(class(empty2$value)[1] != "lavaan"){
@@ -126,11 +126,11 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
   check<-1
   ##run the model. save failed runs and run model. warning and error functions prevent loop from breaking if there is an error. 
   if(std.lv == FALSE){
-    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = +Inf))
+    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = .01))
   }
   
   if(std.lv == TRUE){
-    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,std.lv=TRUE, optim.dx.tol = +Inf))
+    empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,std.lv=TRUE, optim.dx.tol = .01))
   }
   
   empty4$warning$message[1]<-ifelse(is.null(empty4$warning$message), empty4$warning$message[1]<-0, empty4$warning$message[1])
@@ -226,11 +226,11 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
     Model1<-write.Model1(k)
     
     if(std.lv == FALSE){
-      empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = +Inf))
+      empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = .01))
     }
     
     if(std.lv == TRUE){
-      empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,std.lv=TRUE, optim.dx.tol = +Inf))
+      empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2,std.lv=TRUE, optim.dx.tol = .01))
     }
   }
   
@@ -300,8 +300,9 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
     #fix all values from baseline model
     ModelQ_WLS$free<-0
     
-    #remove white space from parameters for easier matching
+    #remove white space from parameters and fixed parameters for easier matching
     params<-str_replace_all(params, fixed(" "), "") 
+    fixparam<-str_replace_all(fixparam, fixed(" "), "") 
     
     x<-1:nrow(ModelQ_WLS)
     u<-1
@@ -316,7 +317,7 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
         }else{ModelQ_WLS$free[i]<-0}
       }
     }
-
+    
     ##freely estimate specified parameters, regressions (including factor loadings), and (residual) variances
     #fix covariances
     if(fix == "covariances"){
@@ -346,9 +347,15 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
     if(max(ModelQ_WLS$free) == nrow(ModelQ_WLS)){
       warning("All parameters are being freely estimated from the baseline model. Enrichment results should likely not be interpreted.")
     }
-
-   #ensure that freely estimated values are not being constrained by lavaan lower column
-    ModelQ_WLS$lower<-ifelse(ModelQ_WLS$free != 0 & ModelQ_WLS$label == "", -Inf,ModelQ_WLS$lower)
+    
+    #ensure that freely estimated values are not being constrained by lavaan upper/lower column
+    if("lower" %in% colnames(ModelQ_WLS)){
+      ModelQ_WLS$lower<-ifelse(ModelQ_WLS$free != 0 & ModelQ_WLS$label == "", -Inf,ModelQ_WLS$lower)
+    }
+    
+    if("upper" %in% colnames(ModelQ_WLS)){
+      ModelQ_WLS$upper<-ifelse(ModelQ_WLS$free != 0 & ModelQ_WLS$label == "", Inf,ModelQ_WLS$upper)
+    }
     
     if(base==TRUE){
       Merge_base<-data.frame(paste0(ModelQ_WLS$lhs,ModelQ_WLS$op,ModelQ_WLS$rhs,sep=""),ModelQ_WLS$free)
@@ -368,11 +375,11 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
     print("Confirming fixed model reproduces estimate from freely estimated model for baseline annotation.")
     
     if(std.lv == FALSE){
-      testQ<-.tryCatch.W.E(ModelQ_Results_WLS <- sem(model = ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs=2, optim.dx.tol = +Inf))
+      testQ<-.tryCatch.W.E(ModelQ_Results_WLS <- sem(model = ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs=2, optim.dx.tol = .01))
     }
     
     if(std.lv == TRUE){
-      testQ<-.tryCatch.W.E(ModelQ_Results_WLS <- sem(model = ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs=2, std.lv=TRUE, optim.dx.tol = +Inf))
+      testQ<-.tryCatch.W.E(ModelQ_Results_WLS <- sem(model = ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs=2, std.lv=TRUE, optim.dx.tol = .01))
     }
     
     test1<-subset(ModelQ_WLS, ModelQ_WLS$free != 0)
@@ -464,7 +471,7 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
           diag(V_Reorderb)<-diag(V_Reorder)
           W_Reorder<-solve(V_Reorderb)
           
-          part_warn<-.tryCatch.W.E(ModelPart_Results <- sem(ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = +Inf))
+          part_warn<-.tryCatch.W.E(ModelPart_Results <- sem(ModelQ_WLS, sample.cov = S_LD, estimator = "DWLS", WLS.V = W_Reorder, sample.nobs = 2, optim.dx.tol = .01))
           
           part_warn$warning$message[1]<-ifelse(is.null(part_warn$warning$message), part_warn$warning$message[1]<-0, part_warn$warning$message[1])
           
@@ -522,7 +529,7 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
               results$est<-NULL
               results$SE<-NULL
               results$error<-ifelse(class(part_warn$value) == "lavaan", 0, as.character(part_warn$value$message))[1]
-              results$warning<-ifelse(class(part_warn$warning) == 'NULL', 0, as.character(part_warn$warning$message))[1]
+              results$warning<-ifelse(class(part_warn$warning) == 'NULL' | grepl("not recommended for continuous data",part_warn$warning), 0, as.character(part_warn$warning$message))[1]
               
               if(n == 1){
                 Results_List<-vector(mode="list",length=nrow(results))
@@ -537,6 +544,10 @@ enrich <-function(s_covstruc, model = "",params,fix= "regressions",std.lv=FALSE,
                 }
               }
             }else{
+              if(n == 1){
+                print(bread_check$value)
+                stop("Your baseline model produced tolerance issues; consider using the toler argument to set a lower threshold")
+              }
               for(y in 1:length(params)){
                 final<-data.frame(as.character(names(s_covstruc$S[n])), test1$lhs[y], test1$op[y], test1$rhs[y],LD_sdiff, Z_diff, NA,NA,NA)
                 final$error<-ifelse(class(part_warn$value) == "lavaan", 0, as.character(part_warn$value$message))[1]
