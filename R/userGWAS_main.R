@@ -1,4 +1,4 @@
-.userGWAS_main <- function(i, cores, k, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs2, beta_SNP, SE_SNP,
+.userGWAS_main <- function(i, cores, k, n, I_LD, V_LD, S_LD, std.lv, varSNPSE2, order, SNPs, beta_SNP, SE_SNP,
                            varSNP, GC, coords, smooth_check, TWAS, printwarn, toler, estimation, sub, Model1,
                            df, npar, utilfuncs=NULL, basemodel=NULL, returnlavmodel=FALSE,Q_SNP,model) {
   # utilfuncs contains utility functions to enable this code to work on PSOC clusters (for Windows)
@@ -29,26 +29,7 @@
   ##invert the reordered sampling covariance matrix to create a weight matrix
   W <- solve(W, tol=toler)
   
-  #create empty vector for S_SNP
-  S_SNP <- vector(mode="numeric",length=k+1)
-  
-  #enter SNP variance from reference panel as first observation
-  S_SNP[1] <- varSNP[i]
-  
-  #enter SNP covariances (standardized beta * SNP variance from refference panel)
-  for (p in 1:k) {
-    S_SNP[p+1] <- varSNP[i]*beta_SNP[i, p]
-  }
-  
-  #create shell of the full S (observed covariance) matrix
-  S_Fullrun <- diag(k+1)
-  
-  ##add the LD portion of the S matrix
-  S_Fullrun[(2:(k+1)),(2:(k+1))] <- S_LD
-  
-  ##add in observed SNP variances as first row/column
-  S_Fullrun[1:(k+1),1] <- S_SNP
-  S_Fullrun[1,1:(k+1)] <- t(S_SNP)
+  S_Fullrun<-.get_S_Full(k,S_LD,varSNP,beta_SNP,TWAS,i)
   
   ##smooth to near positive definite if either V or S are non-positive definite
   ks <- nrow(S_Fullrun)
@@ -68,16 +49,6 @@
     }
   }
   
-  #name the columns
-  if(!(TWAS)){
-    colnames(S_Fullrun) <- c("SNP", colnames(S_LD))
-  } else {
-    colnames(S_Fullrun) <- c("Gene", colnames(S_LD))
-  }
-  
-  ##name rows like columns
-  rownames(S_Fullrun) <- colnames(S_Fullrun)
-  
   ##run the model. save failed runs and run model. warning and error functions prevent loop from breaking if there is an error.
   if(estimation == "DWLS"){
     if (!is.null(basemodel)) {
@@ -86,7 +57,7 @@
                                                      slotOptions=basemodel@Options, slotParTable=basemodel@ParTable, slotSampleStats=NULL,
                                                      slotData=basemodel@Data, slotModel=basemodel@Model, slotCache=NULL, sloth1=NULL))
     } else {
-      test <- .tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_Fullrun, estimator = "DWLS", WLS.V = W, sample.nobs = 2, optim.dx.tol = +Inf,std.lv=std.lv))
+      test <- .tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_Fullrun, estimator = "DWLS", WLS.V = W, sample.nobs = 2, optim.dx.tol = .01,std.lv=std.lv))
     }
   } else if(estimation == "ML"){
     if (!is.null(basemodel)) {
@@ -95,11 +66,15 @@
                                                      slotOptions=basemodel@Options, slotParTable=basemodel@ParTable, slotSampleStats=NULL,
                                                      slotData=basemodel@Data, slotModel=basemodel@Model, slotCache=NULL, sloth1=NULL))
     } else {
-      test <- .tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_Fullrun, estimator = "ML",sample.nobs = 200, optim.dx.tol = +Inf,sample.cov.rescale=FALSE,std.lv=std.lv))
+      test <- .tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_Fullrun, estimator = "ML",sample.nobs = 200, optim.dx.tol = .01,sample.cov.rescale=FALSE,std.lv=std.lv))
     }
     
   }
   if (returnlavmodel) {
+    if(class(test$value)[1] == "simpleError"){
+      print("Something has gone wrong early in the estimation process. This is the error the model is returning:")
+      print(test$value)
+    }
     return(Model1_Results)
   }
   
@@ -205,67 +180,70 @@
     
     #new Q_SNP calculation
     if(Q_SNP){
-    #number of factors
-    lv<-colnames(lavInspect(Model1_Results,"cor.lv"))
-    
-    #number of factors with estimated SNP effects
-    #split model code by line
-    lines_SNP <- strsplit(model, "\n")[[1]]
-    
-    # Use grep to find lines containing "SNP" 
-    if(TWAS){
-    lines_SNP <- lines_SNP[grepl("Gene", lines_SNP)]
+      #number of factors
+      lv<-colnames(lavInspect(Model1_Results,"cor.lv"))
+      
+      #number of factors with estimated SNP effects
+      #split model code by line
+      lines_SNP <- strsplit(model, "\n")[[1]]
+      
+      #remove any spacing to ensure matching
+      lines_SNP <- str_replace_all(lines_SNP, fixed(" "), "")
+      
+      # Use grep to find lines containing "SNP" 
+      if(TWAS){
+        lines_SNP <- lines_SNP[grepl("Gene", lines_SNP)]
       }else{lines_SNP <- lines_SNP[grepl("SNP", lines_SNP)]}
-    
-    #subset to factors with estimated SNP effects
-    lv <- lv[lv %in% gsub(" ~.*|~.*", "", lines_SNP)]
-    
-    #name the columns and rows of V_SNP according to the genetic covariance matrix for subsetting in loop below
-    colnames(V_SNP)<-colnames(S_LD)
-    rownames(V_SNP)<-colnames(V_SNP)
-    
-    Q_SNP_result<-vector()
-    Q_SNP_df<-vector()
       
-    #loop calculating Q_SNP for each factor
-    for(b in 1:length(lv)){
+      #subset to factors with estimated SNP effects
+      lv <- lv[lv %in% gsub(" ~.*|~.*", "", lines_SNP)]
       
-      #determine the indicators for the factor
-      indicators<-subset(Model_Output$rhs,Model_Output$lhs == lv[b] & Model_Output$op == "=~")
+      #name the columns and rows of V_SNP according to the genetic covariance matrix for subsetting in loop below
+      colnames(V_SNP)<-colnames(S_LD)
+      rownames(V_SNP)<-colnames(V_SNP)
       
-      #check that the factor indicators are observed variables
-      #for which SNP-phenotype covariances will be in the S matrix
-      #otherwise put Q_SNP as NA for second-order factors
-      if(indicators[1] %in% colnames(V_SNP)){
-      #subset V_SNP to the indicators for that factor
-      V_SNP_i<-V_SNP[indicators,indicators]
+      Q_SNP_result<-vector()
+      Q_SNP_df<-vector()
       
-      #calculate eigen values V_SNP matrix
-      Eig<-as.matrix(eigen(V_SNP_i)$values)
-      
-      #create empty matrix 
-      Eig2<-diag(length(indicators))
-      
-      #put eigen values in diagonal of the matrix
-      diag(Eig2)<-Eig
-      
-      #Pull P1 (the eigen vectors of V_SNP)
-      P1<-eigen(V_SNP_i)$vectors
-      
-      #eta: the residual covariance matrix for the SNP effects in column 1 for just the indicators
-      eta<-as.vector(implied2[1,indicators])
-      
-      #calculate model chi-square for only the SNP portion of the model for those factor indicators
-      Q_SNP_result[b]<-t(eta)%*%P1%*%solve(Eig2)%*%t(P1)%*%eta
-      Q_SNP_df[b]<-length(indicators)-1
-      }else{
-        Q_SNP_result[b]<-NA
-        Q_SNP_df[b]<-length(indicators)-1
+      #loop calculating Q_SNP for each factor
+      for(b in 1:length(lv)){
+        
+        #determine the indicators for the factor
+        indicators<-subset(Model_Output$rhs,Model_Output$lhs == lv[b] & Model_Output$op == "=~")
+        
+        #check that the factor indicators are observed variables
+        #for which SNP-phenotype covariances will be in the S matrix
+        #otherwise put Q_SNP as NA for second-order factors
+        if(indicators[1] %in% colnames(V_SNP)){
+          #subset V_SNP to the indicators for that factor
+          V_SNP_i<-V_SNP[indicators,indicators]
+          
+          #calculate eigen values V_SNP matrix
+          Eig<-as.matrix(eigen(V_SNP_i)$values)
+          
+          #create empty matrix 
+          Eig2<-diag(length(indicators))
+          
+          #put eigen values in diagonal of the matrix
+          diag(Eig2)<-Eig
+          
+          #Pull P1 (the eigen vectors of V_SNP)
+          P1<-eigen(V_SNP_i)$vectors
+          
+          #eta: the residual covariance matrix for the SNP effects in column 1 for just the indicators
+          eta<-as.vector(implied2[1,indicators])
+          
+          #calculate model chi-square for only the SNP portion of the model for those factor indicators
+          Q_SNP_result[b]<-t(eta)%*%P1%*%solve(Eig2)%*%t(P1)%*%eta
+          Q_SNP_df[b]<-length(indicators)-1
+        }else{
+          Q_SNP_result[b]<-NA
+          Q_SNP_df[b]<-length(indicators)-1
+        }
       }
+      
     }
-   
-    }
-   
+    
     ##remove parameter constraints, ghost parameters, and fixed effects from output to merge with SEs
     unstand <- subset(Model_Output, Model_Output$plabel != "" & Model_Output$free > 0)[,c("lhs","op","rhs","free","label","est")]
     
@@ -319,30 +297,33 @@
       final$Q_SNP_df<-rep(NA,nrow(final))
       final$Q_SNP_pval<-rep(NA,nrow(final))
       if(length(lv) > 0){
-      for(r in 1:nrow(final)){
-        for(h in 1:length(lv)){
-          #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP or factor~Gene effects are listed in the model)
-      if(final$lhs[r] == lv[h] & ((final$rhs[r] == "Gene" & TWAS) | (final$rhs[r] == "SNP" & !TWAS))) {
-          final$Q_SNP[r]<-Q_SNP_result[h]
-          final$Q_SNP_df[r]<-Q_SNP_df[h]
-          final$Q_SNP_pval[r]<-pchisq(final$Q_SNP[r],final$Q_SNP_df[r],lower.tail=FALSE)
-        }
-        }
+        for(r in 1:nrow(final)){
+          for(h in 1:length(lv)){
+            #Note Q_SNP results are in the order of the lv vector (irrespective of what order the factor~SNP or factor~Gene effects are listed in the model)
+            if(final$lhs[r] == lv[h] & ((final$rhs[r] == "Gene" & TWAS) | (final$rhs[r] == "SNP" & !TWAS))) {
+              final$Q_SNP[r]<-Q_SNP_result[h]
+              final$Q_SNP_df[r]<-Q_SNP_df[h]
+              final$Q_SNP_pval[r]<-pchisq(final$Q_SNP[r],final$Q_SNP_df[r],lower.tail=FALSE)
+            }
+          }
         }
       }
     }
-
+    
     ##add in error and warning messages
     if(printwarn){
       final$error <- ifelse(class(test$value) == "lavaan", 0, as.character(test$value$message))[1]
       final$warning <- ifelse(class(test$warning) == 'NULL', 0, as.character(test$warning$message))[1]
     }
     ##combine with rs-id, BP, CHR, etc.
-    final2 <- cbind(n + (i-1) * cores,SNPs2[i,],final,row.names=NULL)
+    final2 <- cbind(n + (i-1) * cores,SNPs[i,],final,row.names=NULL)
     
     if(smooth_check){
       final2 <- cbind(final2,Z_smooth)
     }
+    
+    #remove redundant output in lavaan representation of model
+    final2<-subset(final2, final2$op != "da")
     
     if(!(sub[[1]])==FALSE){
       final2 <- subset(final2, paste0(final2$lhs, final2$op, final2$rhs, sep = "") %in% sub)
@@ -354,14 +335,14 @@
     if(Q_SNP){
       final <- data.frame(t(rep(NA, 16)))
     }else{
-    final <- data.frame(t(rep(NA, 13)))
+      final <- data.frame(t(rep(NA, 13)))
     }
     
     if(printwarn){
       final$error <- ifelse(class(test$value) == "lavaan", 0, as.character(test$value$message))[1]
       final$warning <- ifelse(class(test$warning) == 'NULL', 0, as.character(test$warning$message))[1]}
     ##combine results with SNP, CHR, BP, A1, A2 for particular model
-    final2 <- cbind(n + (i-1) * cores, SNPs2[i,], final, row.names=NULL)
+    final2 <- cbind(n + (i-1) * cores, SNPs[i,], final, row.names=NULL)
     
     if(smooth_check){
       final2 <- cbind(final2,Z_smooth)
@@ -370,13 +351,13 @@
   
   if(TWAS){
     if(Q_SNP){
-    new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
+      new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
     }else{
       new_names <- c("i", "Gene","Panel","HSQ", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
     }
   }else{
     if(Q_SNP){
-    new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
+      new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","Q_SNP","Q_SNP_df","Q_SNP_pval", "error","warning")
     }else{
       new_names <- c("i", "SNP", "CHR", "BP", "MAF", "A1", "A2", "lhs", "op", "rhs", "free", "label", "est", "SE", "Z_Estimate", "Pval_Estimate","chisq","chisq_df","chisq_pval", "AIC","error","warning")
     }
@@ -386,6 +367,6 @@
     new_names <- c(new_names, "Z_smooth")
   
   colnames(final2) <- new_names
-
+  
   return(final2)
 }
