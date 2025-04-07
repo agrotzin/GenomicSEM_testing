@@ -88,7 +88,7 @@ g_esem <-function(covstruc, model = "", rotation = "geomin", rotation.args=list(
   #transform V_LD matrix into a weight matrix: 
   W <- solve(V_LD)
 
-  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "WLS", WLS.V = W, sample.nobs = 2,warn=FALSE, optim.dx.tol = +Inf,optim.force.converged=TRUE,control=list(iter.max=1),rotation=rotation,rotation.args=rotation.args))
+  empty3<-.tryCatch.W.E(ReorderModel <- sem(Model1, sample.cov = S_LD, estimator = "WLS", WLS.V = W, sample.nobs = 2,warn=FALSE, optim.dx.tol = .01,optim.force.converged=TRUE,control=list(iter.max=1),rotation=rotation,rotation.args=rotation.args))
   
   if(class(empty3$value) != "lavaan"){
     warning(paste("The function has stopped due to convergence issues for your primary model. Please contact us with your specific model and variables used or try specifying an alternative model"))
@@ -106,7 +106,7 @@ W_Reorder<-solve(V_LD[order[[2]],order[[2]]])
   print("Running model")
   
   ##run the model. save failed runs and run model. warning and error functions prevent loop from breaking if there is an error. 
-  empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "WLS", std.lv=std.lv,WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = +Inf,rotation=rotation,rotation.args=rotation.args))
+  empty4<-.tryCatch.W.E(Model1_Results <- sem(Model1, sample.cov = S_LD, estimator = "WLS", std.lv=std.lv,WLS.V = W_Reorder, sample.nobs = 2,optim.dx.tol = .01,rotation=rotation,rotation.args=rotation.args))
   
   empty4$warning$message[1]<-ifelse(is.null(empty4$warning$message), empty4$warning$message[1]<-0, empty4$warning$message[1])
 
