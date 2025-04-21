@@ -141,8 +141,10 @@ W_Reorder<-solve(V_LD[order[[2]],order[[2]]])
         modelfit<-cbind(chisq,df,AIC,SRMR)
         
     ##pull results and name the columns of the results file
-    results<-data.frame(inspect(Model1_Results, "list")[,c("lhs", "op", "rhs", "est", "se", "est.std", "se.std","efa")])
- 
+    ##note this code is written to pull in the STD.all and std.all.se columns from lavaan output that are currently not given column labels in lavaan              
+    results<-data.frame(cbind(inspect(Model1_Results, "list")[,c("lhs", "op", "rhs", "est", "se")],inspect(Model1_Results, "list")[,c(20,21)]),inspect(Model1_Results, "list")[,c("efa")])
+
+    #name the columns
     colnames(results)=c("lhs","op","rhs","Unstand_Est","Unstand_SE", "Stand_Est", "Stand_SE","efa")
  
     ##name model fit columns
