@@ -140,12 +140,18 @@ W_Reorder<-solve(V_LD[order[[2]],order[[2]]])
         
         modelfit<-cbind(chisq,df,AIC,SRMR)
         
-    ##pull results and name the columns of the results file
-    ##note this code is written to pull in the STD.all and std.all.se columns from lavaan output that are currently not given column labels in lavaan              
-    results<-data.frame(cbind(inspect(Model1_Results, "list")[,c("lhs", "op", "rhs", "est", "se")],inspect(Model1_Results, "list")[,c(20,21)]),inspect(Model1_Results, "list")[,c("efa")])
+  ##pull results
+  results<-data.frame(inspect(Model1_Results, "list"))
 
-    #name the columns
-    colnames(results)=c("lhs","op","rhs","Unstand_Est","Unstand_SE", "Stand_Est", "Stand_SE","efa")
+  #rename standardized columns printed as NA by lavaan in version 0.6-19 
+  colnames(results)[colnames(results) == "NA."] <- "est.std"
+  colnames(results)[colnames(results) == "NA..1"] <- "se.std"
+  
+  #subset relevant columns
+  results<-results[,c("lhs", "op", "rhs", "est", "se", "est.std", "se.std","efa")]
+
+  #give column names consistent with other GenomicSEM functions 
+  colnames(results)=c("lhs","op","rhs","Unstand_Est","Unstand_SE", "Stand_Est", "Stand_SE","efa")
  
     ##name model fit columns
     colnames(modelfit)=c("chisq","df","AIC","SRMR")
